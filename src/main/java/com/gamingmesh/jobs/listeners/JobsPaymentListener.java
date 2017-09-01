@@ -178,7 +178,7 @@ public class JobsPaymentListener implements Listener {
 	//disabling plugin in world
 	if (event.getPlayer() != null && !Jobs.getGCManager().canPerformActionInWorld(event.getPlayer().getWorld()))
 	    return;
-	// Entity that died must be living
+	
 	if (!(event.getEntity() instanceof Sheep))
 	    return;
 	Sheep sheep = (Sheep) event.getEntity();
@@ -513,8 +513,6 @@ public class JobsPaymentListener implements Listener {
 		return;
 	    }
 	}
-
-	Debug.D("Crafted item " + resultStack.getType().name() + "  " + resultStack.getAmount());
 
 	// If we need to pay only by each craft action we will skip calculation how much was crafted
 	if (!Jobs.getGCManager().PayForEachCraft) {
@@ -982,7 +980,7 @@ public class JobsPaymentListener implements Listener {
 	//disabling plugin in world
 	if (event.getEntity() != null && !Jobs.getGCManager().canPerformActionInWorld(event.getEntity().getWorld()))
 	    return;
-	if (event.getSpawnReason() == SpawnReason.SPAWNER) {
+	if (event.getSpawnReason() == SpawnReason.SPAWNER || event.getSpawnReason() == SpawnReason.SPAWNER_EGG) {
 	    LivingEntity creature = event.getEntity();
 	    creature.setMetadata(Jobs.getPlayerManager().getMobSpawnerMetadata(), new FixedMetadataValue(this.plugin, true));
 	}

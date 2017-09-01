@@ -23,6 +23,9 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.gamingmesh.jobs.Jobs;
@@ -66,12 +69,16 @@ public class Job {
     private List<String> CmdOnLeave = new ArrayList<String>();
     // Item for GUI
     private ItemStack GUIitem;
+    // Item for GUI
+    private Long rejoinCd = 0L;
 
     private int totalPlayers = -1;
     private Double bonus = null;
 
     private BoostMultiplier boost = new BoostMultiplier();
     private String bossbar;
+
+    private Parser moneyEquation, xpEquation, pointsEquation;
 
     /**
      * Constructor
@@ -94,7 +101,7 @@ public class Job {
      */
     public Job(String jobName, String jobShortName, String description, ChatColor jobColour, Parser maxExpEquation, DisplayMethod displayMethod, int maxLevel,
 	int vipmaxLevel, Integer maxSlots, List<JobPermission> jobPermissions, List<JobCommands> jobCommands, List<JobConditions> jobConditions, List<JobItems> jobItems,
-	List<JobLimitedItems> jobLimitedItems, List<String> CmdOnJoin, List<String> CmdOnLeave, ItemStack GUIitem, String bossbar) {
+	List<JobLimitedItems> jobLimitedItems, List<String> CmdOnJoin, List<String> CmdOnLeave, ItemStack GUIitem, String bossbar, Long rejoinCD) {
 	this.jobName = jobName;
 	this.jobShortName = jobShortName;
 	this.description = description;
@@ -113,6 +120,7 @@ public class Job {
 	this.CmdOnLeave = CmdOnLeave;
 	this.GUIitem = GUIitem;
 	this.bossbar = bossbar;
+	this.rejoinCd = rejoinCD;
     }
 
     public void addBoost(CurrencyType type, double Point) {
@@ -195,7 +203,7 @@ public class Job {
      */
 
     public List<JobInfo> getJobInfo(ActionType type) {
-	return Collections.unmodifiableList(jobInfo.get(type));
+	return jobInfo.get(type);
     }
 
     /**
@@ -287,6 +295,23 @@ public class Job {
 	return maxLevel;
     }
 
+    public int getMaxLevel(JobsPlayer player) {
+	if (player == null)
+	    return getMaxLevel();
+	return player.getMaxJobLevelAllowed(this);
+    }
+
+    public int getMaxLevel(CommandSender sender) {
+	if (sender == null)
+	    return getMaxLevel();
+	if (sender instanceof Player) {
+	    JobsPlayer player = Jobs.getPlayerManager().getJobsPlayer((Player) sender);
+	    if (player != null)
+		return player.getMaxJobLevelAllowed(this);
+	}	
+	return getMaxLevel() > getVipMaxLevel() ? getMaxLevel() : getVipMaxLevel();
+    }
+
     /**
      * Function to return the maximum level
      * @return the max level
@@ -351,5 +376,37 @@ public class Job {
 
     public void setBossbar(String bossbar) {
 	this.bossbar = bossbar;
+    }
+
+    public Parser getMoneyEquation() {
+	return moneyEquation;
+    }
+
+    public void setMoneyEquation(Parser moneyEquation) {
+	this.moneyEquation = moneyEquation;
+    }
+
+    public Parser getXpEquation() {
+	return xpEquation;
+    }
+
+    public void setXpEquation(Parser xpEquation) {
+	this.xpEquation = xpEquation;
+    }
+
+    public Parser getPointsEquation() {
+	return pointsEquation;
+    }
+
+    public void setPointsEquation(Parser pointsEquation) {
+	this.pointsEquation = pointsEquation;
+    }
+
+    public Long getRejoinCd() {
+	return rejoinCd;
+    }
+
+    public void setRejoinCd(Long rejoinCd) {
+	this.rejoinCd = rejoinCd;
     }
 }

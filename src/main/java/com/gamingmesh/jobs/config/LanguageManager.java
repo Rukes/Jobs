@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
-
 import org.bukkit.configuration.file.YamlConfiguration;
 import com.gamingmesh.jobs.Jobs;
 import com.gamingmesh.jobs.container.LocaleReader;
@@ -58,13 +56,13 @@ public class LanguageManager {
 
 	for (String lang : languages) {
 	    File f = new File(plugin.getDataFolder(), "locale" + File.separator + "messages_" + lang + ".yml");
-	    
+
 	    // Fail safe if file get corrupted and being created with corrupted data, we need to recreate it
 	    if ((f.length() / 1024) > 1024) {
 		f.delete();
 		f = new File(plugin.getDataFolder(), "locale" + File.separator + "messages_" + lang + ".yml");
 	    }
-	    
+
 	    YamlConfiguration config = YamlConfiguration.loadConfiguration(f);
 	    CommentedYamlConfiguration writer = new CommentedYamlConfiguration();
 
@@ -169,8 +167,11 @@ public class LanguageManager {
 	    c.get("command.help.output.usage", "Usage: %usage%");
 	    c.get("command.help.output.title", "&e-------&e ======= &6Jobs &e======= &e-------");
 	    c.get("command.help.output.page", "&e-----&e ====== Page &6[1] &eof &6[2] &e====== &e-----");
+	    c.get("command.help.output.fliperSimbols", "&e----------");
 	    c.get("command.help.output.prev", "&e--- <<<<< &6Prev page &e|");
+	    c.get("command.help.output.prevOff", "&7--- <<<<< Prev page &e|");
 	    c.get("command.help.output.next", "&e|&6 Next Page &e>>>> ---");
+	    c.get("command.help.output.nextOff", "&e|&7 Next Page >>>> ---");
 
 	    c.get("command.points.help.info", "Shows how much points player have.");
 	    c.get("command.points.help.args", "[playername]");
@@ -184,6 +185,25 @@ public class LanguageManager {
 	    c.get("command.editpoints.output.set", "&ePlayers (&6%playername%&e) points was set to &6%amount%");
 	    c.get("command.editpoints.output.add", "&ePlayer (&6%playername%&e) got aditinal &6%amount% &epoints. Now he has &6%total%");
 	    c.get("command.editpoints.output.take", "&ePlayer (&6%playername%&e) lost &6%amount% &epoints. Now he has &6%total%");
+
+	    c.get("command.editjobs.help.info", "Edit current jobs.");
+	    c.get("command.editjobs.help.args", "");
+	    c.get("command.editjobs.help.list.job", "&eJobs:");
+	    c.get("command.editjobs.help.list.jobs", "  -> [&e%jobname%&r]");
+	    c.get("command.editjobs.help.list.actions", "    -> [&e%actionname%&r]");
+	    c.get("command.editjobs.help.list.material", "      -> [&e%materialname%&r]      ");
+	    c.get("command.editjobs.help.list.materialRemove", "&c[X]");
+	    c.get("command.editjobs.help.list.materialAdd", "      -> &e[&2+&e]");
+	    c.get("command.editjobs.help.list.money", "        -> &eMoney: &6%amount%");
+	    c.get("command.editjobs.help.list.exp", "        -> &ePoints: &6%amount%");
+	    c.get("command.editjobs.help.list.points", "        -> &eExp: &6%amount%");
+	    c.get("command.editjobs.help.modify.newValue", "&eEnter new value");
+	    c.get("command.editjobs.help.modify.enter", "&eEnter new name or press ");
+	    c.get("command.editjobs.help.modify.hand", "&6HAND ");
+	    c.get("command.editjobs.help.modify.handHover", "&6Press to grab info from item in your hand");
+	    c.get("command.editjobs.help.modify.or", "&eor ");
+	    c.get("command.editjobs.help.modify.look", "&6LOOKING AT");
+	    c.get("command.editjobs.help.modify.lookHover", "&6Press to grab info from block you are looking");
 
 	    c.get("command.blockinfo.help.info", "Shows block information you looking at.");
 	    c.get("command.blockinfo.help.args", "");
@@ -230,7 +250,6 @@ public class LanguageManager {
 	    c.get("command.archive.help.args", "[playername]");
 	    Jobs.getGCManager().commandArgs.put("archive", Arrays.asList("[playername]"));
 	    c.get("command.archive.error.nojob", "There is no jobs saved.");
-	    c.get("command.archive.output", "lvl %joblevel% (%getbackjoblevel%) %jobname%");
 
 	    c.get("command.give.help.info", "Gives item by jobs name and item category name. Player name is optional");
 	    c.get("command.give.help.args", "[playername] [jobname] [itemname]");
@@ -315,6 +334,7 @@ public class LanguageManager {
 	    c.get("command.join.error.alreadyin", "You are already in the job %jobname%.");
 	    c.get("command.join.error.fullslots", "You cannot join the job %jobname%, there are no slots available.");
 	    c.get("command.join.error.maxjobs", "You have already joined too many jobs.");
+	    c.get("command.join.error.rejoin", "&cCan't rejoin this job. Wait [time]");
 	    c.get("command.join.success", "You have joined the job %jobname%.");
 
 	    c.get("command.leave.help.info", "Leave the selected job.");
@@ -393,7 +413,10 @@ public class LanguageManager {
 	    c.get("command.log.help.args", "[playername]");
 	    Jobs.getGCManager().commandArgs.put("log", Arrays.asList("[playername]"));
 	    c.get("command.log.output.topline", "&7************************* &6%playername% &7*************************");
-	    c.get("command.log.output.list", "&7* &6%number%. &3%action%: &6%item% &eqty: %qty% &6money: %money% &eexp: %exp%");
+	    c.get("command.log.output.ls", "&7* &6%number%. &3%action%: &6%item% &eqty: %qty% %money%%exp%%points%");
+	    c.get("command.log.output.money", "&6money: %amount% ");
+	    c.get("command.log.output.exp", "&eexp: %amount% ");
+	    c.get("command.log.output.points", "&6points: %amount%");
 	    c.get("command.log.output.bottomline", "&7***********************************************************");
 	    c.get("command.log.output.prev", "&e<<<<< Prev page &2|");
 	    c.get("command.log.output.next", "&2|&e Next Page >>>>");
@@ -402,7 +425,10 @@ public class LanguageManager {
 	    c.get("command.glog.help.info", "Shows global statistics.");
 	    c.get("command.glog.help.args", "");
 	    c.get("command.glog.output.topline", "&7*********************** &6Global statistics &7***********************");
-	    c.get("command.glog.output.list", "&7* &6%number%. &3%username% &e%action%: &6%item% &eqty: %qty% &6money: %money% &eexp: %exp%");
+	    c.get("command.glog.output.ls", "&7* &6%number%. &3%action%: &6%item% &eqty: %qty% %money%%exp%%points%");
+	    c.get("command.glog.output.money", "&6money: %amount% ");
+	    c.get("command.glog.output.exp", "&eexp: %amount% ");
+	    c.get("command.glog.output.points", "&6points: %amount%");
 	    c.get("command.glog.output.bottomline", "&7**************************************************************");
 	    c.get("command.glog.output.nodata", "&cData not found");
 
@@ -415,7 +441,7 @@ public class LanguageManager {
 	    c.get("command.promote.help.args", "[playername] [jobname] [levels]");
 	    Jobs.getGCManager().commandArgs.put("promote", Arrays.asList("[playername]", "[jobname]", "[levels]"));
 	    c.get("command.promote.output.target", "You have been promoted %levelsgained% levels in %jobname%.");
-	    
+
 	    c.get("command.exp.help.info", "Change the player exp for job.");
 	    c.get("command.exp.help.args", "[playername] [jobname] [set/add/take] [amount]");
 	    Jobs.getGCManager().commandArgs.put("exp", Arrays.asList("[playername]", "[jobname]", "take%%set%%add"));
@@ -475,18 +501,19 @@ public class LanguageManager {
 	    c.get("message.crafting.fullinventory", "Your inventory is full!");
 
 	    c.get("signs.List", "&0[number].&8[player]&7:&4[level]");
-	    c.get("signs.SpecialList.1.1", "&b** &8First &b**");
-	    c.get("signs.SpecialList.1.2", "&9[player]");
-	    c.get("signs.SpecialList.1.3", "&8[level] level");
-	    c.get("signs.SpecialList.1.4", "&b************");
-	    c.get("signs.SpecialList.2.1", "&b** &8Second &b**");
-	    c.get("signs.SpecialList.2.2", "&9[player]");
-	    c.get("signs.SpecialList.2.3", "&8[level] level");
-	    c.get("signs.SpecialList.2.4", "&b************");
-	    c.get("signs.SpecialList.3.1", "&b** &8Third &b**");
-	    c.get("signs.SpecialList.3.2", "&9[player]");
-	    c.get("signs.SpecialList.3.3", "&8[level] level");
-	    c.get("signs.SpecialList.3.4", "&b************");
+	    c.get("signs.SpecialList.p1", "&b** &8First &b**");
+	    c.get("signs.SpecialList.p2", "&b** &8Second &b**");
+	    c.get("signs.SpecialList.p3", "&b** &8Third &b**");
+	    c.get("signs.SpecialList.p4", "&b** &8Fourth &b**");
+	    c.get("signs.SpecialList.p5", "&b** &8Fifth &b**");
+	    c.get("signs.SpecialList.p6", "&b** &8Sixth &b**");
+	    c.get("signs.SpecialList.p7", "&b** &8Seventh &b**");
+	    c.get("signs.SpecialList.p8", "&b** &8Eight &b**");
+	    c.get("signs.SpecialList.p9", "&b** &8Ninth &b**");
+	    c.get("signs.SpecialList.p10", "&b** &8Tenth &b**");
+	    c.get("signs.SpecialList.name", "&9[player]");
+	    c.get("signs.SpecialList.level", "&8[level] level");
+	    c.get("signs.SpecialList.bottom", "&b************");
 	    c.get("signs.cantcreate", "&4You can't create this sign!");
 	    c.get("signs.cantdestroy", "&4You can't destroy this sign!");
 	    c.get("signs.topline", "&0[Jobs]");

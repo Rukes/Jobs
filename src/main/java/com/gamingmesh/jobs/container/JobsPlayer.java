@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -42,6 +43,7 @@ public class JobsPlayer {
     // progression of the player in each job
     public UUID playerUUID;
     public ArrayList<JobProgression> progression = new ArrayList<JobProgression>();
+    private ArchivedJobs archivedJobs = new ArchivedJobs();
 
     private PaymentData paymentLimits = null;
 
@@ -78,6 +80,18 @@ public class JobsPlayer {
 	this.userName = userName;
 	this.OffPlayer = player;
 	this.player = Bukkit.getPlayer(userName);
+    }
+
+    public ArchivedJobs getArchivedJobs() {
+	return archivedJobs;
+    }
+
+    public JobProgression getArchivedJobProgression(Job job) {
+	return archivedJobs.getArchivedJobProgression(job);
+    }
+
+    public void setArchivedJobs(ArchivedJobs archivedJob) {
+	this.archivedJobs = archivedJob;
     }
 
     public int getTotalLevels() {
@@ -370,10 +384,11 @@ public class JobsPlayer {
 	if (!isInJob(job)) {
 	    int level = 1;
 	    int exp = 0;
-	    if (Jobs.getJobsDAO().checkArchive(this, job).size() > 0) {
-		List<Integer> info = Jobs.getJobsDAO().checkArchive(this, job);
-		level = info.get(0);
-		//exp = info.get(1);
+
+	    JobProgression archived = this.getArchivedJobProgression(job);
+	    if (archived != null) {
+		level = getLevelAfterRejoin(archived);
+		exp = getExpAfterRejoin(archived, level);
 		Jobs.getJobsDAO().deleteArchive(this, job);
 	    }
 
@@ -386,6 +401,38 @@ public class JobsPlayer {
 	}
 	return false;
 //	}
+    }
+
+    public int getLevelAfterRejoin(JobProgression jp) {
+	if (jp == null)
+	    return 1;
+
+	int level = jp.getLevel();
+
+	level = (int) ((level - (level * (Jobs.getGCManager().levelLossPercentage / 100.0))));
+	if (level < 1)
+	    level = 1;
+
+	Job job = jp.getJob();
+	int maxLevel = this.getMaxJobLevelAllowed(job);
+	if (Jobs.getGCManager().fixAtMaxLevel && jp.getLevel() == maxLevel)
+	    level = jp.getLevel();
+
+	return level;
+    }
+
+    public int getExpAfterRejoin(JobProgression jp, int level) {
+	if (jp == null)
+	    return 1;
+	Integer max = jp.getMaxExperience(level);
+	Double exp = jp.getExperience();
+	if (exp > max)
+	    exp = max.doubleValue();
+
+	if (exp > 0) {
+	    exp = (exp - (exp * (Jobs.getGCManager().levelLossPercentage / 100.0)));
+	}
+	return exp.intValue();
     }
 
     /**
@@ -434,10 +481,7 @@ public class JobsPlayer {
 	    return;
 	int newLevel = prog.getLevel() + levels;
 
-	int maxLevel = job.getMaxLevel();
-
-	if (this.havePermission("jobs." + job.getName() + ".vipmaxlevel") && job.getVipMaxLevel() != 0)
-	    maxLevel = job.getVipMaxLevel();
+	int maxLevel = job.getMaxLevel(this);
 
 	if (maxLevel > 0 && newLevel > maxLevel) {
 	    newLevel = maxLevel;
@@ -499,11 +543,7 @@ public class JobsPlayer {
 
 		prog.setJob(newjob);
 
-		int maxLevel = 0;
-		if (this.havePermission("jobs." + newjob.getName() + ".vipmaxlevel"))
-		    maxLevel = newjob.getVipMaxLevel();
-		else
-		    maxLevel = newjob.getMaxLevel();
+		int maxLevel = getMaxJobLevelAllowed(newjob);
 
 		if (newjob.getMaxLevel() > 0 && prog.getLevel() > maxLevel) {
 		    prog.setLevel(maxLevel);
@@ -518,6 +558,18 @@ public class JobsPlayer {
 	}
 	return false;
 //	}
+    }
+
+    public int getMaxJobLevelAllowed(Job job) {
+	int maxLevel = 0;
+	if (this.havePermission("jobs." + job.getName() + ".vipmaxlevel"))
+	    maxLevel = job.getVipMaxLevel() > job.getMaxLevel() ? job.getVipMaxLevel() : job.getMaxLevel();
+	else
+	    maxLevel = job.getMaxLevel();
+	int tMax = Jobs.getPermissionManager().getMaxPermission(this, "jobs." + job.getName() + ".vipmaxlevel").intValue();
+	if (tMax > maxLevel)
+	    maxLevel = tMax;
+	return maxLevel;
     }
 
     /**
@@ -713,5 +765,37 @@ public class JobsPlayer {
 
     public void setLastPermissionUpdate(Long lastPermissionUpdate) {
 	this.lastPermissionUpdate = lastPermissionUpdate;
+    }
+
+    public boolean canGetPaid(ActionInfo info) {
+
+	List<JobProgression> progression = getJobProgression();
+	int numjobs = progression.size();
+
+	if (numjobs == 0) {
+	    if (Jobs.getNoneJob() == null)
+		return false;
+	    JobInfo jobinfo = Jobs.getNoneJob().getJobInfo(info, 1);
+	    if (jobinfo == null)
+		return false;
+	    Double income = jobinfo.getIncome(1, numjobs);
+	    Double points = jobinfo.getPoints(1, numjobs);
+	    if (income == 0D && points == 0D)
+		return false;
+	}
+
+	for (JobProgression prog : progression) {
+	    int level = prog.getLevel();
+	    JobInfo jobinfo = prog.getJob().getJobInfo(info, level);
+	    if (jobinfo == null)
+		continue;
+	    Double income = jobinfo.getIncome(level, numjobs);
+	    Double pointAmount = jobinfo.getPoints(level, numjobs);
+	    Double expAmount = jobinfo.getExperience(level, numjobs);
+	    if (income != 0D || pointAmount != 0D || expAmount != 0D)
+		return true;
+	}
+
+	return false;
     }
 }

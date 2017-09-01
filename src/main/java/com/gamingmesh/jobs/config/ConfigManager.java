@@ -20,8 +20,10 @@ package com.gamingmesh.jobs.config;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,7 +38,6 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 
 import com.gamingmesh.jobs.Jobs;
-import com.gamingmesh.jobs.CmiItems.ItemManager.CMIEntityType;
 import com.gamingmesh.jobs.container.ActionType;
 import com.gamingmesh.jobs.container.BoostMultiplier;
 import com.gamingmesh.jobs.container.CurrencyType;
@@ -50,7 +51,6 @@ import com.gamingmesh.jobs.container.JobLimitedItems;
 import com.gamingmesh.jobs.container.JobPermission;
 import com.gamingmesh.jobs.resources.jfep.Parser;
 import com.gamingmesh.jobs.stuff.ChatColor;
-import com.gamingmesh.jobs.stuff.Debug;
 
 public class ConfigManager {
     private Jobs plugin;
@@ -62,6 +62,61 @@ public class ConfigManager {
     public void reload() throws IOException {
 	// job settings
 	loadJobSettings();
+    }
+
+    public void changeJobsSettings(String path, Object value) {
+	File f = new File(plugin.getDataFolder(), "jobConfig.yml");
+	InputStreamReader s = null;
+	try {
+	    s = new InputStreamReader(new FileInputStream(f), "UTF-8");
+	} catch (UnsupportedEncodingException | FileNotFoundException e1) {
+	    e1.printStackTrace();
+	}
+
+	if (!f.exists()) {
+	    try {
+		f.createNewFile();
+	    } catch (IOException e) {
+		Jobs.getPluginLogger().severe("Unable to create jobConfig.yml!  No jobs were loaded!");
+		try {
+		    if (s != null)
+			s.close();
+		} catch (IOException e1) {
+		    e1.printStackTrace();
+		}
+		return;
+	    }
+	}
+	YamlConfiguration conf = new YamlConfiguration();
+	conf.options().pathSeparator('/');
+	try {
+	    conf.load(s);
+	    if (s != null)
+		s.close();
+	} catch (Exception e) {
+	    Bukkit.getServer().getLogger().severe("==================== Jobs ====================");
+	    Bukkit.getServer().getLogger().severe("Unable to load jobConfig.yml!");
+	    Bukkit.getServer().getLogger().severe("Check your config for formatting issues!");
+	    Bukkit.getServer().getLogger().severe("No jobs were loaded!");
+	    Bukkit.getServer().getLogger().severe("Error: " + e.getMessage());
+	    Bukkit.getServer().getLogger().severe("==============================================");
+	    return;
+	} finally {
+	    if (s != null)
+		try {
+		    s.close();
+		} catch (IOException e) {
+		    e.printStackTrace();
+		}
+	}
+
+	conf.set(path, value);
+
+	try {
+	    conf.save(f);
+	} catch (IOException e) {
+	    e.printStackTrace();
+	}
     }
 
     /**
@@ -138,6 +193,12 @@ public class ConfigManager {
 	    if (maxSlots.intValue() <= 0) {
 		maxSlots = null;
 	    }
+
+	    Long rejoinCd = jobSection.getLong("rejoinCooldown", 0L);
+	    if (rejoinCd < 0L) {
+		rejoinCd = 0L;
+	    }
+	    rejoinCd = rejoinCd * 1000L;
 
 	    String jobShortName = jobSection.getString("shortname", null);
 	    if (jobShortName == null) {
@@ -417,7 +478,11 @@ public class ConfigManager {
 	    }
 
 	    Job job = new Job(jobName, jobShortName, description, color, maxExpEquation, displayMethod, maxLevel, vipmaxLevel, maxSlots, jobPermissions, jobCommand,
-		jobConditions, jobItems, jobLimitedItems, JobsCommandOnJoin, JobsCommandOnLeave, GUIitem, bossbar);
+		jobConditions, jobItems, jobLimitedItems, JobsCommandOnJoin, JobsCommandOnLeave, GUIitem, bossbar, rejoinCd);
+
+	    job.setMoneyEquation(incomeEquation);
+	    job.setXpEquation(expEquation);
+	    job.setPointsEquation(pointsEquation);
 
 	    for (ActionType actionType : ActionType.values()) {
 		ConfigurationSection typeSection = jobSection.getConfigurationSection(actionType.getName());
@@ -621,7 +686,7 @@ public class ConfigManager {
 			}
 
 			jobInfo.add(new JobInfo(actionType, id, meta, type + subType, income, incomeEquation, experience, expEquation, pointsEquation, points, fromlevel,
-			    untilLevel));
+			    untilLevel, section.getCurrentPath()));
 		    }
 		}
 		job.setJobInfo(actionType, jobInfo);

@@ -20,12 +20,15 @@ package com.gamingmesh.jobs.container;
 
 import java.util.HashMap;
 
+import com.gamingmesh.jobs.stuff.TimeManage;
+
 public class JobProgression {
     private Job job;
     private JobsPlayer jPlayer;
     private double experience;
     private int level;
     private transient int maxExperience = -1;
+    private Long leftOn = null;
 
     public JobProgression(Job job, JobsPlayer jPlayer, int level, double experience) {
 	this.job = job;
@@ -172,12 +175,7 @@ public class JobProgression {
 	boolean ret = false;
 	while (canLevelUp()) {
 
-	    int maxLevel = 0;
-	    if (jPlayer.havePermission("jobs." + job.getName() + ".vipmaxlevel") && job.getVipMaxLevel() != 0)
-		maxLevel = job.getVipMaxLevel();
-	    else
-		maxLevel = job.getMaxLevel();
-
+	    int maxLevel = this.jPlayer.getMaxJobLevelAllowed(this.getJob());
 	    // Don't level up at max level        	
 	    if (job.getMaxLevel() > 0 && level >= maxLevel)
 		break;
@@ -223,4 +221,31 @@ public class JobProgression {
 	reloadMaxExperience();
 	return checkLevelUp();
     }
+
+    public Long getLeftOn() {
+	return leftOn;
+    }
+
+    public JobProgression setLeftOn(Long leftOn) {
+	this.leftOn = leftOn;
+	return this;
+    }
+
+    public boolean canRejoin() {
+	if (this.leftOn == null)
+	    return true;
+	if (this.leftOn + this.getJob().getRejoinCd() < System.currentTimeMillis())
+	    return true;
+	if (this.jPlayer != null && jPlayer.getPlayer() != null && jPlayer.getPlayer().hasPermission("jobs.rejoinbypass"))
+	    return true;
+	return false;
+    }
+
+    public String getRejoinTimeMessage() {
+	if (leftOn == null)
+	    return "";
+	String msg = (TimeManage.to24hourShort(getLeftOn() + getJob().getRejoinCd() - System.currentTimeMillis()));
+	return msg;
+    }
+
 }

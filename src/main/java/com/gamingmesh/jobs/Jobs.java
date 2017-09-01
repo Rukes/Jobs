@@ -66,6 +66,7 @@ import com.gamingmesh.jobs.config.TitleManager;
 import com.gamingmesh.jobs.config.YmlMaker;
 import com.gamingmesh.jobs.container.ActionInfo;
 import com.gamingmesh.jobs.container.ActionType;
+import com.gamingmesh.jobs.container.ArchivedJobs;
 import com.gamingmesh.jobs.container.BlockProtection;
 import com.gamingmesh.jobs.container.Boost;
 import com.gamingmesh.jobs.container.CurrencyType;
@@ -94,7 +95,6 @@ import com.gamingmesh.jobs.stuff.RawMessage;
 import com.gamingmesh.jobs.stuff.TabComplete;
 import com.gamingmesh.jobs.stuff.VersionChecker;
 import com.gamingmesh.jobs.stuff.CMIScoreboardManager;
-import com.gamingmesh.jobs.stuff.Debug;
 import com.gamingmesh.jobs.tasks.BufferedPaymentThread;
 import com.gamingmesh.jobs.tasks.DatabaseSaveThread;
 
@@ -542,18 +542,21 @@ public class Jobs extends JavaPlugin {
 	HashMap<Integer, List<JobsDAOData>> playersJobs = Jobs.getJobsDAO().getAllJobs();
 	HashMap<Integer, PlayerPoints> playersPoints = Jobs.getJobsDAO().getAllPoints();
 	HashMap<Integer, HashMap<String, Log>> playersLogs = Jobs.getJobsDAO().getAllLogs();
+	HashMap<Integer, ArchivedJobs> playersArchives = Jobs.getJobsDAO().getAllArchivedJobs();
 	Iterator<Entry<UUID, PlayerInfo>> it = temp.entrySet().iterator();
 	while (it.hasNext()) {
 	    Entry<UUID, PlayerInfo> one = it.next();
 	    try {
 		int id = one.getValue().getID();
-		JobsPlayer jPlayer = Jobs.getPlayerManager().getJobsPlayerOffline(one.getValue(), playersJobs.get(id), playersPoints.get(id), playersLogs.get(id));
+		JobsPlayer jPlayer = Jobs.getPlayerManager().getJobsPlayerOffline(one.getValue(), playersJobs.get(id), playersPoints.get(id), playersLogs.get(id), playersArchives.get(id));
 		if (jPlayer == null)
 		    continue;
 		Jobs.getPlayerManager().addPlayerToCache(jPlayer);
 	    } catch (Exception e) {
+		e.printStackTrace();
 	    }
 	}
+
 	dao.getMap().clear();
 	Bukkit.getConsoleSender().sendMessage(ChatColor.YELLOW + "[Jobs] Preloaded " + Jobs.getPlayerManager().getPlayersCache().size() + " players data in " + ((int) (((System.currentTimeMillis() - time)
 	    / 1000d) * 100) / 100D));
@@ -875,7 +878,7 @@ public class Jobs extends JavaPlugin {
 	int numjobs = progression.size();
 	// no job
 
-	if (!isBpOk(jPlayer.getPlayer(), info, block, true))
+	if (!isBpOk(jPlayer, info, block, true))
 	    return;
 
 	if (numjobs == 0) {
@@ -890,59 +893,62 @@ public class Jobs extends JavaPlugin {
 	    Double income = jobinfo.getIncome(1, numjobs);
 	    Double pointAmount = jobinfo.getPoints(1, numjobs);
 
-	    if (income != 0D || pointAmount != 0D) {
+	    if (income == 0D && pointAmount == 0D)
+		return;
 
-		Boost boost = pManager.getFinalBonus(jPlayer, Jobs.getNoneJob());
+	    Boost boost = pManager.getFinalBonus(jPlayer, Jobs.getNoneJob());
 
-		// Calculate income
+	    // Calculate income
 
-		if (income != 0D) {
-		    income = income + (income * boost.getFinal(CurrencyType.MONEY));
-		    if (GconfigManager.useMinimumOveralPayment && income > 0) {
-			double maxLimit = income * GconfigManager.MinimumOveralPaymentLimit;
-			if (income < maxLimit) {
-			    income = maxLimit;
-			}
+	    if (income != 0D) {
+		income = income + (income * boost.getFinal(CurrencyType.MONEY));
+		if (GconfigManager.useMinimumOveralPayment && income > 0) {
+		    double maxLimit = income * GconfigManager.MinimumOveralPaymentLimit;
+		    if (income < maxLimit) {
+			income = maxLimit;
 		    }
 		}
+	    }
 
-		// Calculate points
+	    // Calculate points
 
-		if (pointAmount != 0D) {
-		    pointAmount = pointAmount + (pointAmount * boost.getFinal(CurrencyType.POINTS));
-		    if (GconfigManager.useMinimumOveralPoints && pointAmount > 0) {
-			double maxLimit = pointAmount * GconfigManager.MinimumOveralPaymentLimit;
-			if (pointAmount < maxLimit) {
-			    pointAmount = maxLimit;
-			}
+	    if (pointAmount != 0D) {
+		pointAmount = pointAmount + (pointAmount * boost.getFinal(CurrencyType.POINTS));
+		if (GconfigManager.useMinimumOveralPoints && pointAmount > 0) {
+		    double maxLimit = pointAmount * GconfigManager.MinimumOveralPaymentLimit;
+		    if (pointAmount < maxLimit) {
+			pointAmount = maxLimit;
 		    }
 		}
+	    }
 
-		if (!jPlayer.isUnderLimit(CurrencyType.MONEY, income)) {
-		    income = 0D;
-		    if (GconfigManager.getLimit(CurrencyType.MONEY).getStopWith().contains(CurrencyType.POINTS))
-			pointAmount = 0D;
-		}
-
-		if (!jPlayer.isUnderLimit(CurrencyType.POINTS, pointAmount)) {
+	    if (!jPlayer.isUnderLimit(CurrencyType.MONEY, income)) {
+		income = 0D;
+		if (GconfigManager.getLimit(CurrencyType.MONEY).getStopWith().contains(CurrencyType.POINTS))
 		    pointAmount = 0D;
-		    if (GconfigManager.getLimit(CurrencyType.POINTS).getStopWith().contains(CurrencyType.MONEY))
-			income = 0D;
-		}
+	    }
 
-		if (income == 0D && pointAmount == 0D)
-		    return;
+	    if (!jPlayer.isUnderLimit(CurrencyType.POINTS, pointAmount)) {
+		pointAmount = 0D;
+		if (GconfigManager.getLimit(CurrencyType.POINTS).getStopWith().contains(CurrencyType.MONEY))
+		    income = 0D;
+	    }
 
-		if (info.getType() == ActionType.BREAK && block != null)
-		    Jobs.getBpManager().remove(block);
+	    if (income == 0D && pointAmount == 0D)
+		return;
 
-		if (pointAmount != 0D)
-		    jPlayer.setSaved(false);
+	    if (info.getType() == ActionType.BREAK && block != null)
+		Jobs.getBpManager().remove(block);
 
-		Jobs.getEconomy().pay(jPlayer, income, pointAmount, 0.0);
+	    if (pointAmount != 0D)
+		jPlayer.setSaved(false);
 
-		if (GconfigManager.LoggingUse)
-		    loging.recordToLog(jPlayer, info, income, 0);
+	    Jobs.getEconomy().pay(jPlayer, income, pointAmount, 0.0);
+
+	    if (GconfigManager.LoggingUse) {
+		HashMap<CurrencyType, Double> amounts = new HashMap<CurrencyType, Double>();
+		amounts.put(CurrencyType.MONEY, income);
+		loging.recordToLog(jPlayer, info, amounts);
 	    }
 
 	} else {
@@ -1073,8 +1079,13 @@ public class Jobs extends JavaPlugin {
 		economy.pay(jPlayer, income, pointAmount, expAmount);
 		int oldLevel = prog.getLevel();
 
-		if (GconfigManager.LoggingUse)
-		    loging.recordToLog(jPlayer, info, income, expAmount);
+		if (GconfigManager.LoggingUse) {
+		    HashMap<CurrencyType, Double> amounts = new HashMap<CurrencyType, Double>();
+		    amounts.put(CurrencyType.MONEY, income);
+		    amounts.put(CurrencyType.EXP, expAmount);
+		    amounts.put(CurrencyType.POINTS, pointAmount);
+		    loging.recordToLog(jPlayer, info, amounts);
+		}
 
 		if (prog.addExperience(expAmount))
 		    pManager.performLevelUp(jPlayer, prog.getJob(), oldLevel);
@@ -1089,15 +1100,15 @@ public class Jobs extends JavaPlugin {
 	}
     }
 
-    private static boolean isBpOk(Player player, ActionInfo info, Block block, boolean inform) {
+    private static boolean isBpOk(JobsPlayer player, ActionInfo info, Block block, boolean inform) {
 	if (block == null || !getGCManager().useBlockProtection)
 	    return true;
 
 	if (info.getType() == ActionType.BREAK) {
-        if(block.hasMetadata("JobsExploit")){
-            //player.sendMessage("This block is protected using Rukes' system!");
-            return false;
-        }
+	    if (block.hasMetadata("JobsExploit")) {
+		//player.sendMessage("This block is protected using Rukes' system!");
+		return false;
+	    }
 	    BlockProtection bp = getBpManager().getBp(block.getLocation());
 	    if (bp != null) {
 		Long time = bp.getTime();
@@ -1114,7 +1125,8 @@ public class Jobs extends JavaPlugin {
 		if (time > System.currentTimeMillis() || bp.isPaid() && bp.getAction() != DBAction.DELETE) {
 		    int sec = Math.round((time - System.currentTimeMillis()) / 1000L);
 		    if (inform) {
-			getActionBar().send(player, getLanguage().getMessage("message.blocktimer", "[time]", sec));
+			if (player.canGetPaid(info))
+			    getActionBar().send(player.getPlayer(), getLanguage().getMessage("message.blocktimer", "[time]", sec));
 		    }
 		    return false;
 		}
@@ -1139,7 +1151,8 @@ public class Jobs extends JavaPlugin {
 		    if (time > System.currentTimeMillis() || bp.isPaid() && bp.getAction() != DBAction.DELETE) {
 			int sec = Math.round((time - System.currentTimeMillis()) / 1000L);
 			if (inform) {
-			    getActionBar().send(player, getLanguage().getMessage("message.blocktimer", "[time]", sec));
+			    if (player.canGetPaid(info))
+				getActionBar().send(player.getPlayer(), getLanguage().getMessage("message.blocktimer", "[time]", sec));
 			}
 			getBpManager().add(block, cd);
 			return false;
@@ -1223,8 +1236,13 @@ public class Jobs extends JavaPlugin {
 
 	int oldLevel = prog.getLevel();
 
-	if (GconfigManager.LoggingUse)
-	    loging.recordToLog(jPlayer, info, payment.getAmount(), payment.getExp());
+	if (GconfigManager.LoggingUse) {
+	    HashMap<CurrencyType, Double> amounts = new HashMap<CurrencyType, Double>();
+	    amounts.put(CurrencyType.MONEY, payment.getAmount());
+	    amounts.put(CurrencyType.EXP, payment.getExp());
+	    amounts.put(CurrencyType.POINTS, payment.getPoints());
+	    loging.recordToLog(jPlayer, info, amounts);
+	}
 
 	if (prog.addExperience(payment.getExp()))
 	    pManager.performLevelUp(jPlayer, prog.getJob(), oldLevel);
@@ -1259,5 +1277,29 @@ public class Jobs extends JavaPlugin {
 	    ((Player) sender).sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
 	} else
 	    ((CommandSender) sender).sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
+    }
+
+    public void ShowPagination(CommandSender sender, int pageCount, int CurrentPage, String cmd) {
+	if (!(sender instanceof Player))
+	    return;
+	if (!cmd.startsWith("/"))
+	    cmd = "/" + cmd;
+//	String separator = Jobs.getLanguage().getMessage("command.help.output.fliperSimbols");
+
+	if (pageCount == 1)
+	    return;
+
+	int NextPage = CurrentPage + 1;
+	NextPage = CurrentPage < pageCount ? NextPage : CurrentPage;
+	int Prevpage = CurrentPage - 1;
+	Prevpage = CurrentPage > 1 ? Prevpage : CurrentPage;
+
+	RawMessage rm = new RawMessage();
+	rm.add((CurrentPage > 1 ? Jobs.getLanguage().getMessage("command.help.output.prev") : Jobs.getLanguage().getMessage("command.help.output.prevOff")), CurrentPage > 1 ? "<<<" : null, CurrentPage > 1
+	    ? cmd + " " + Prevpage : null);
+	rm.add(pageCount > CurrentPage ? Jobs.getLanguage().getMessage("command.help.output.next") : Jobs.getLanguage().getMessage("command.help.output.nextOff"), pageCount > CurrentPage ? ">>>" : null,
+	    pageCount > CurrentPage ? cmd + " " + NextPage : null);
+	if (pageCount != 0)
+	    rm.show(sender);
     }
 }
