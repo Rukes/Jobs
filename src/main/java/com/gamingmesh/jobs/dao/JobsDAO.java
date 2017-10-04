@@ -299,29 +299,29 @@ public abstract class JobsDAO {
 
     public enum DBTables {
 	UsersTable("users",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", UserTableFields.class),
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", UserTableFields.class),
 	JobsTable("jobs",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", JobsTableFields.class),
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", JobsTableFields.class),
 	ArchiveTable("archive",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", ArchiveTableFields.class),
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", ArchiveTableFields.class),
 	BlocksTable("blocks",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", BlockTableFields.class),
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", BlockTableFields.class),
 	LimitsTable("limits",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", LimitTableFields.class),
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", LimitTableFields.class),
 	LogTable("log",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", LogTableFields.class),
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", LogTableFields.class),
 	ExploreTable("explore",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", ExploreTableFields.class),
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", ExploreTableFields.class),
 	PointsTable("points",
-	    "CREATE TABLE `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
-	    "CREATE TABLE `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", PointsTableFields.class);
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` int NOT NULL AUTO_INCREMENT PRIMARY KEY[fields]);",
+	    "CREATE TABLE IF NOT EXISTS `[tableName]` (`id` INTEGER PRIMARY KEY AUTOINCREMENT[fields]);", PointsTableFields.class);
 
 	private String mySQL;
 	private String sQlite;
@@ -1522,7 +1522,7 @@ public abstract class JobsDAO {
 		    prest1.setInt(6, log.getDate());
 		    prest1.setString(7, log.getActionType());
 		    prest1.setString(8, one.getKey());
-		    prest1.addBatch();
+//		    prest1.addBatch();
 		    added = true;
 		}
 	    }
@@ -1548,7 +1548,7 @@ public abstract class JobsDAO {
 		    prest2.setDouble(6, one.getValue().get(CurrencyType.MONEY));
 		    prest2.setDouble(7, one.getValue().get(CurrencyType.EXP));
 		    prest2.setDouble(8, one.getValue().get(CurrencyType.POINTS));
-		    prest2.addBatch();
+//		    prest2.addBatch();
 		    added = true;
 		}
 	    }
