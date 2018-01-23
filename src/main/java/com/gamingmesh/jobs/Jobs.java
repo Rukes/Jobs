@@ -71,6 +71,7 @@ import com.gamingmesh.jobs.container.BlockProtection;
 import com.gamingmesh.jobs.container.Boost;
 import com.gamingmesh.jobs.container.CurrencyType;
 import com.gamingmesh.jobs.container.DBAction;
+import com.gamingmesh.jobs.container.FastPayment;
 import com.gamingmesh.jobs.container.Job;
 import com.gamingmesh.jobs.container.JobInfo;
 import com.gamingmesh.jobs.container.JobProgression;
@@ -78,8 +79,11 @@ import com.gamingmesh.jobs.container.JobsPlayer;
 import com.gamingmesh.jobs.container.Log;
 import com.gamingmesh.jobs.container.PlayerInfo;
 import com.gamingmesh.jobs.container.PlayerPoints;
-import com.gamingmesh.jobs.dao.*;
-import com.gamingmesh.jobs.container.FastPayment;
+import com.gamingmesh.jobs.container.QuestProgression;
+import com.gamingmesh.jobs.dao.JobsClassLoader;
+import com.gamingmesh.jobs.dao.JobsDAO;
+import com.gamingmesh.jobs.dao.JobsDAOData;
+import com.gamingmesh.jobs.dao.JobsManager;
 import com.gamingmesh.jobs.economy.BufferedEconomy;
 import com.gamingmesh.jobs.economy.BufferedPayment;
 import com.gamingmesh.jobs.economy.Economy;
@@ -91,11 +95,12 @@ import com.gamingmesh.jobs.listeners.McMMOlistener;
 import com.gamingmesh.jobs.listeners.PistonProtectionListener;
 import com.gamingmesh.jobs.selection.SelectionManager;
 import com.gamingmesh.jobs.stuff.ActionBar;
+import com.gamingmesh.jobs.stuff.CMIScoreboardManager;
+import com.gamingmesh.jobs.stuff.FurnaceBrewingHandling;
 import com.gamingmesh.jobs.stuff.Loging;
 import com.gamingmesh.jobs.stuff.RawMessage;
 import com.gamingmesh.jobs.stuff.TabComplete;
 import com.gamingmesh.jobs.stuff.VersionChecker;
-import com.gamingmesh.jobs.stuff.CMIScoreboardManager;
 import com.gamingmesh.jobs.tasks.BufferedPaymentThread;
 import com.gamingmesh.jobs.tasks.DatabaseSaveThread;
 
@@ -522,7 +527,6 @@ public class Jobs extends JavaPlugin {
      * @throws IOException 
      */
     public void startup() {
-	instance = this;
 	try {
 	    reload();
 	} catch (IOException e1) {
@@ -736,6 +740,8 @@ public class Jobs extends JavaPlugin {
 
     @Override
     public void onEnable() {
+
+	instance = this;
 	running = true;
 	this.setEnabled(true);
 
@@ -776,6 +782,7 @@ public class Jobs extends JavaPlugin {
 	    YmlMaker jobShopItems = new YmlMaker(this, "shopItems.yml");
 	    jobShopItems.saveDefaultConfig();
 
+	    
 	    setPermissionHandler(new PermissionHandler(this));
 	    setJobsClassloader();
 	    setPlayerManager();
@@ -826,12 +833,16 @@ public class Jobs extends JavaPlugin {
 	    dao.loadBlockProtection();
 	    getExplore().load();
 
+	    FurnaceBrewingHandling.load();
+	    
 	    String message = ChatColor.translateAlternateColorCodes('&', "&e[Jobs] Plugin has been enabled succesfully.");
 	    ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
 	    console.sendMessage(message);
 	    lManager.reload();
 
 	    cManager.fillCommands();
+
+	    
 	} catch (Exception e) {
 	    System.out.println("There was some issues when starting plugin. Please contact dev about this. Plugin will be disabled.");
 	    e.printStackTrace();
@@ -845,11 +856,25 @@ public class Jobs extends JavaPlugin {
 	shopManager.CloseInventories();
 	dao.saveExplore();
 	dao.saveBlockProtection();
+	
+	FurnaceBrewingHandling.save();
+	
 	Jobs.shutdown();
 	String message = ChatColor.translateAlternateColorCodes('&', "&e[Jobs] &2Plugin has been disabled succesfully.");
 	ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
 	console.sendMessage(message);
 	this.setEnabled(false);
+    }
+
+    private static void checkDailyQuests(JobsPlayer jPlayer, JobProgression prog, ActionInfo info) {
+	if (!prog.getJob().getQuests().isEmpty()) {
+	    List<QuestProgression> q = jPlayer.getQuestProgressions(prog.getJob(), info.getType());
+	    for (QuestProgression one : q) {
+		if (one != null) {
+		    one.processQuest(jPlayer, info);
+		}
+	    }
+	}
     }
 
     /**
@@ -966,6 +991,9 @@ public class Jobs extends JavaPlugin {
 
 		if (jobinfo == null)
 		    continue;
+
+		checkDailyQuests(jPlayer, prog, info);
+
 		Double income = jobinfo.getIncome(level, numjobs);
 		Double pointAmount = jobinfo.getPoints(level, numjobs);
 		Double expAmount = jobinfo.getExperience(level, numjobs);
@@ -1288,25 +1316,28 @@ public class Jobs extends JavaPlugin {
     }
 
     public void ShowPagination(CommandSender sender, int pageCount, int CurrentPage, String cmd) {
+	ShowPagination(sender, pageCount, CurrentPage, cmd, null);
+    }
+
+    public void ShowPagination(CommandSender sender, int pageCount, int CurrentPage, String cmd, String pagePref) {
 	if (!(sender instanceof Player))
 	    return;
 	if (!cmd.startsWith("/"))
 	    cmd = "/" + cmd;
-//	String separator = Jobs.getLanguage().getMessage("command.help.output.fliperSimbols");
-
 	if (pageCount == 1)
 	    return;
-
+	String pagePrefix = pagePref == null ? "" : pagePref;
 	int NextPage = CurrentPage + 1;
 	NextPage = CurrentPage < pageCount ? NextPage : CurrentPage;
 	int Prevpage = CurrentPage - 1;
 	Prevpage = CurrentPage > 1 ? Prevpage : CurrentPage;
 
 	RawMessage rm = new RawMessage();
-	rm.add((CurrentPage > 1 ? Jobs.getLanguage().getMessage("command.help.output.prev") : Jobs.getLanguage().getMessage("command.help.output.prevOff")), CurrentPage > 1 ? "<<<" : null, CurrentPage > 1
-	    ? cmd + " " + Prevpage : null);
-	rm.add(pageCount > CurrentPage ? Jobs.getLanguage().getMessage("command.help.output.next") : Jobs.getLanguage().getMessage("command.help.output.nextOff"), pageCount > CurrentPage ? ">>>" : null,
-	    pageCount > CurrentPage ? cmd + " " + NextPage : null);
+	rm.add((CurrentPage > 1 ? Jobs.getLanguage().getMessage("command.help.output.prevPage") : Jobs.getLanguage().getMessage("command.help.output.prevPageOff")),
+	    CurrentPage > 1 ? "<<<" : null, CurrentPage > 1 ? cmd + " " + pagePrefix + Prevpage : null);
+	rm.add(Jobs.getLanguage().getMessage("command.help.output.pageCount", "[current]", CurrentPage, "[total]", pageCount));
+	rm.add(pageCount > CurrentPage ? Jobs.getLanguage().getMessage("command.help.output.nextPage") : Jobs.getLanguage().getMessage("command.help.output.nextPageOff"),
+	    pageCount > CurrentPage ? ">>>" : null, pageCount > CurrentPage ? cmd + " " + pagePrefix + NextPage : null);
 	if (pageCount != 0)
 	    rm.show(sender);
     }

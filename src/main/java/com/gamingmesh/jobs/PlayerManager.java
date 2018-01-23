@@ -58,6 +58,7 @@ import com.gamingmesh.jobs.dao.JobsDAOData;
 import com.gamingmesh.jobs.economy.PaymentData;
 import com.gamingmesh.jobs.economy.PointsData;
 import com.gamingmesh.jobs.stuff.ChatColor;
+import com.gamingmesh.jobs.stuff.Debug;
 import com.gamingmesh.jobs.stuff.PerformCommands;
 
 public class PlayerManager {
@@ -167,7 +168,9 @@ public class PlayerManager {
      * @param playername
      */
     public void playerJoin(Player player) {
+
 	JobsPlayer jPlayer = this.playersUUIDCache.get(player.getUniqueId());
+
 	if (jPlayer == null || Jobs.getGCManager().MultiServerCompatability()) {
 	    jPlayer = Jobs.getJobsDAO().loadFromDao(player);
 	    jPlayer.loadLogFromDao();
@@ -179,6 +182,7 @@ public class PlayerManager {
 	jPlayer.onConnect();
 	jPlayer.reloadHonorific();
 	Jobs.getPermissionHandler().recalculatePermissions(jPlayer);
+
 	return;
     }
 
@@ -299,6 +303,7 @@ public class PlayerManager {
 	JobsPlayer jPlayer = new JobsPlayer(info.getName(), null);
 	jPlayer.setPlayerUUID(info.getUuid());
 	jPlayer.setUserId(info.getID());
+	jPlayer.setDoneQuests(info.getQuestsDone());
 
 	if (jobs != null)
 	    for (JobsDAOData jobdata : jobs) {
@@ -321,7 +326,7 @@ public class PlayerManager {
 
 	if (logs != null)
 	    jPlayer.setLog(logs);
-	
+
 	if (limits != null)
 	    jPlayer.setPaymentLimit(limits);
 

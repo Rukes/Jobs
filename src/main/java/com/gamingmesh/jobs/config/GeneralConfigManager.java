@@ -71,6 +71,9 @@ public class GeneralConfigManager {
     public boolean PaymentMethodsExp;
     public int getSelectionTooldID;
 
+    private int ResetTimeHour;
+    private int ResetTimeMinute;
+
     // Limits
     public HashMap<CurrencyType, CurrencyLimit> currencyLimitUse = new HashMap<CurrencyType, CurrencyLimit>();
 
@@ -82,6 +85,9 @@ public class GeneralConfigManager {
 	CoreProtectInterval, BlockPlaceInterval, InfoUpdateInterval;
     public Double TreeFellerMultiplier, gigaDrillMultiplier, superBreakerMultiplier;
     public String localeString = "EN";
+
+    private boolean FurnacesReassign, BrewingStandsReassign;
+    private int FurnacesMaxDefault, BrewingStandsMaxDefault, BrowseAmountToShow;
 
     public boolean useBlockProtection;
     public int BlockProtectionDays;
@@ -99,7 +105,7 @@ public class GeneralConfigManager {
     public ItemStack guiBackButton;
     public ItemStack guiFiller;
 
-    public Integer levelLossPercentage, SoundLevelupVolume, SoundLevelupPitch, SoundTitleChangeVolume,
+    public Integer levelLossPercentageFromMax, levelLossPercentage, SoundLevelupVolume, SoundLevelupPitch, SoundTitleChangeVolume,
 	SoundTitleChangePitch, ToplistInScoreboardInterval;
     public double MinimumOveralPaymentLimit;
     public double MinimumOveralPointsLimit;
@@ -498,6 +504,11 @@ public class GeneralConfigManager {
 	c.getW().addComment("broadcast.on-level-up.levels", "For what levels you want to broadcast message? Keep it at 0 if you want for all of them");
 	BroadcastingLevelUpLevels = c.getIntList("broadcast.on-level-up.levels", Arrays.asList(0));
 
+	c.getW().addComment("DailyQuests.ResetTime", "Defines time in 24hour format when we want to give out new daily quests",
+	    "Any daily quests given before reset will be invalid and new ones will be given out");
+	ResetTimeHour = c.get("DailyQuests.ResetTime.Hour", 4);
+	ResetTimeMinute = c.get("DailyQuests.ResetTime.Minute", 0);
+
 	c.getW().addComment("max-jobs", "Maximum number of jobs a player can join.", "Use 0 for no maximum", "Keep in mind that jobs.max.[amount] will bypass this setting");
 	maxJobs = c.get("max-jobs", 3);
 
@@ -717,6 +728,25 @@ public class GeneralConfigManager {
 	    "Set to 0 if you want to disable timer");
 	CowMilkingTimer = c.get("Economy.MilkingCow.Timer", 30) * 1000;
 
+	c.getW().addComment("ExploitProtections.Furnaces.Reassign",
+	    "When enabled, players interacted furnaces will be saved into file and will be reassigned after restart to keep giving out money",
+	    "Players will no longer need to click on furnace to get paid from it after server restart");
+	FurnacesReassign = c.get("ExploitProtections.Furnaces.Reassign", true);
+	c.getW().addComment("ExploitProtections.Furnaces.MaxDefaultAvailable",
+	    "Defines max avaible furnaces each player can have to get paid from",
+	    "This can be ovveriden with jobs.maxfurnaces.[amount] permission node");
+	FurnacesMaxDefault = c.get("ExploitProtections.Furnaces.MaxDefaultAvailable", 20);
+
+	c.getW().addComment("ExploitProtections.BrewingStands.Reassign",
+	    "When enabled, players interacted brewing stands will be saved into file and will be reassigned after restart to keep giving out money",
+	    "Players will no longer need to click on brewing stand to get paid from it after server restart");
+	BrewingStandsReassign = c.get("ExploitProtections.BrewingStands.Reassign", true);
+	c.getW().addComment("ExploitProtections.BrewingStands.MaxDefaultAvailable",
+	    "Defines max avaible brewing stands each player can have to get paid from",
+	    "Set to 0 if you want to disable this limitation",
+	    "This can be ovveriden with jobs.maxbrewingstands.[amount] permission node");
+	BrewingStandsMaxDefault = c.get("ExploitProtections.BrewingStands.MaxDefaultAvailable", 20);
+
 	c.getW().addComment("ExploitProtections.General.PlaceAndBreakProtection",
 	    "Enable blocks protection, like ore, from exploiting by placing and destroying same block again and again.",
 	    "Modify restrictedBlocks.yml for blocks you want to protect");
@@ -775,6 +805,10 @@ public class GeneralConfigManager {
 	    "You can fix players level if hes job level is at max level");
 	levelLossPercentage = c.get("old-job.level-loss-percentage", 30);
 	fixAtMaxLevel = c.get("old-job.fix-at-max-level", true);
+	c.getW().addComment("old-job.level-loss-from-max-level",
+	    "Percentage to loose when leaving job at max level",
+	    "Only works when fix-at-max-level is set to false");
+	levelLossPercentageFromMax = c.get("old-job.level-loss-from-max-level", levelLossPercentage);
 
 	c.getW().addComment("ActionBars.Messages.EnabledByDefault", "When this set to true player will see action bar messages by default");
 	ActionBarsMessageByDefault = c.get("ActionBars.Messages.EnabledByDefault", true);
@@ -837,6 +871,9 @@ public class GeneralConfigManager {
 	c.getW().addComment("JobsBrowse.ShowPenaltyBonus", "Do you want to show penalty and bonus in jobs browse window. Only works if this feature is enabled");
 	ShowPenaltyBonus = c.get("JobsBrowse.ShowPenaltyBonus", true);
 
+	c.getW().addComment("JobsBrowse.AmountToShow", "Defines amount of jobs to be shown in one page for /jobs browse");
+	BrowseAmountToShow = c.get("JobsBrowse.AmountToShow", 5);
+
 	c.getW().addComment("JobsGUI.OpenOnBrowse", "Do you want to show GUI when performing /jobs browse command");
 	JobsGUIOpenOnBrowse = c.get("JobsGUI.OpenOnBrowse", true);
 	c.getW().addComment("JobsGUI.ShowChatBrowse", "Do you want to show chat information when performing /jobs browse command");
@@ -845,7 +882,6 @@ public class GeneralConfigManager {
 	    "With false left mouse button will show more info, rigth will join job", "Dont forget to adjust locale file");
 	JobsGUISwitcheButtons = c.get("JobsGUI.SwitcheButtons", false);
 	c.getW().addComment("JobsBrowse.ShowPenaltyBonus", "Do you want to show GUI when performing /jobs join command");
-	JobsGUIOpenOnJoin = c.get("JobsGUI.OpenOnJoin", true);
 
 	Material tmat = Material.getMaterial(c.get("JobsGUI.BackButton.Material", "JACK_O_LANTERN"));
 	guiBackButton = new ItemStack(tmat == null ? Material.JACK_O_LANTERN : tmat, 1, (byte) c.get("JobsGUI.BackButton.Data", 0));
@@ -855,9 +891,6 @@ public class GeneralConfigManager {
 	c.getW().addComment("Schedule.Boost.Enable", "Do you want to enable scheduler for global boost");
 	useGlobalBoostScheduler = c.get("Schedule.Boost.Enable", false);
 
-	//		writer.addComment("Gui.UseJobsBrowse", "Do you want to use jobs browse gui instead of chat text");
-	//		UseJobsBrowse = c.get("Gui.UseJobsBrowse", true);
-	// Write back config
 	try {
 	    c.getW().save(f);
 	} catch (IOException e) {
@@ -865,42 +898,47 @@ public class GeneralConfigManager {
 	}
     }
 
-//    public synchronized void startMysql() {
-//	File f = new File(plugin.getDataFolder(), "generalConfig.yml");
-//	YamlConfiguration config = YamlConfiguration.loadConfiguration(f);
-//	String legacyUrl = config.getString("mysql-url");
-//	if (legacyUrl != null) {
-//	    String jdbcString = "jdbc:mysql://";
-//	    if (legacyUrl.toLowerCase().startsWith(jdbcString)) {
-//		legacyUrl = legacyUrl.substring(jdbcString.length());
-//		String[] parts = legacyUrl.split("/");
-//		if (parts.length >= 2) {
-//		    config.set("mysql-hostname", parts[0]);
-//		    config.set("mysql-database", parts[1]);
-//		}
-//	    }
-//	}
-//	String username = config.getString("mysql-username");
-//	if (username == null) {
-//	    Jobs.getPluginLogger().severe("mysql-username property invalid or missing");
-//	}
-//	String password = config.getString("mysql-password");
-//	String hostname = config.getString("mysql-hostname");
-//	String database = config.getString("mysql-database");
-//	String prefix = config.getString("mysql-table-prefix");
-//	if (plugin.isEnabled())
-//	    Jobs.setDAO(JobsDAOMySQL.initialize(plugin, hostname, database, username, password, prefix));
-//    }
-//
-//    public synchronized void startSqlite() {
-//	Jobs.setDAO(JobsDAOSQLite.initialize(plugin));
-//    }
-
     public int getSelectionTooldID() {
 	return getSelectionTooldID;
     }
 
     public boolean isShowNewVersion() {
 	return ShowNewVersion;
+    }
+
+    public int getResetTimeHour() {
+	return ResetTimeHour;
+    }
+
+    public void setResetTimeHour(int resetTimeHour) {
+	ResetTimeHour = resetTimeHour;
+    }
+
+    public int getResetTimeMinute() {
+	return ResetTimeMinute;
+    }
+
+    public void setResetTimeMinute(int resetTimeMinute) {
+	ResetTimeMinute = resetTimeMinute;
+    }
+
+    public boolean isFurnacesReassign() {
+	return FurnacesReassign;
+    }
+
+    public boolean isBrewingStandsReassign() {
+	return BrewingStandsReassign;
+    }
+
+    public int getFurnacesMaxDefault() {
+	return FurnacesMaxDefault;
+    }
+
+    public int getBrewingStandsMaxDefault() {
+	return BrewingStandsMaxDefault;
+    }
+
+    public int getBrowseAmountToShow() {
+	return BrowseAmountToShow;
     }
 }

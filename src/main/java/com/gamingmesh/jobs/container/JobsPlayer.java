@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -34,6 +33,7 @@ import com.gamingmesh.jobs.dao.JobsDAO;
 import com.gamingmesh.jobs.economy.PaymentData;
 import com.gamingmesh.jobs.resources.jfep.Parser;
 import com.gamingmesh.jobs.stuff.ChatColor;
+import com.gamingmesh.jobs.stuff.FurnaceBrewingHandling;
 import com.gamingmesh.jobs.stuff.Perm;
 import com.gamingmesh.jobs.stuff.TimeManage;
 
@@ -75,6 +75,9 @@ public class JobsPlayer {
 
     private HashMap<String, Boolean> permissionsCache = null;
     private Long lastPermissionUpdate = -1L;
+
+    private HashMap<String, List<QuestProgression>> qProgression = new HashMap<String, List<QuestProgression>>();
+    private int doneQuests = 0;
 
     public JobsPlayer(String userName, OfflinePlayer player) {
 	this.userName = userName;
@@ -419,8 +422,16 @@ public class JobsPlayer {
 
 	Job job = jp.getJob();
 	int maxLevel = this.getMaxJobLevelAllowed(job);
-	if (Jobs.getGCManager().fixAtMaxLevel && jp.getLevel() == maxLevel)
-	    level = jp.getLevel();
+	if (jp.getLevel() == maxLevel) {
+	    if (Jobs.getGCManager().fixAtMaxLevel) {
+		level = jp.getLevel();
+	    } else {
+		level = jp.getLevel();
+		level = (int) ((level - (level * (Jobs.getGCManager().levelLossPercentageFromMax / 100.0))));
+		if (level < 1)
+		    level = 1;
+	    }
+	}
 
 	return level;
     }
@@ -434,7 +445,14 @@ public class JobsPlayer {
 	    exp = max.doubleValue();
 
 	if (exp > 0) {
-	    exp = (exp - (exp * (Jobs.getGCManager().levelLossPercentage / 100.0)));
+	    Job job = jp.getJob();
+	    int maxLevel = this.getMaxJobLevelAllowed(job);
+	    if (jp.getLevel() == maxLevel) {
+		if (!Jobs.getGCManager().fixAtMaxLevel)
+		    exp = (exp - (exp * (Jobs.getGCManager().levelLossPercentageFromMax / 100.0)));
+	    } else {
+		exp = (exp - (exp * (Jobs.getGCManager().levelLossPercentage / 100.0)));
+	    }
 	}
 	return exp.intValue();
     }
@@ -583,6 +601,8 @@ public class JobsPlayer {
      * @return false - they are not in the job
      */
     public boolean isInJob(Job job) {
+	if (job == null)
+	    return false;
 	for (JobProgression prog : progression) {
 	    if (prog.getJob().isSame(job))
 		return true;
@@ -801,5 +821,156 @@ public class JobsPlayer {
 	}
 
 	return false;
+    }
+
+    public boolean inDailyQuest(Job job, String questName) {
+
+	List<QuestProgression> qpl = this.qProgression.get(job.getName());
+	if (qpl == null)
+	    return false;
+
+	for (QuestProgression one : qpl) {
+	    if (one.getQuest().getConfigName().equalsIgnoreCase(questName))
+		return true;
+	}
+
+	return false;
+    }
+
+    private List<String> getQuestNameList(Job job, ActionType type) {
+	List<String> ls = new ArrayList<String>();
+	if (!this.isInJob(job))
+	    return ls;
+
+	List<QuestProgression> qpl = this.qProgression.get(job.getName());
+
+	if (qpl == null)
+	    return ls;
+
+	for (QuestProgression one : qpl) {
+
+	    if (!one.isEnded() && (type == null || type.name().equals(one.getQuest().getAction().name())))
+		ls.add(one.getQuest().getConfigName().toLowerCase());
+	}
+
+	return ls;
+    }
+
+    public void resetQuests() {
+	for (JobProgression one : this.getJobProgression()) {
+	    for (QuestProgression oneQ : this.getQuestProgressions(one.getJob())) {
+		oneQ.setValidUntil(0L);
+	    }
+	}
+	getQuestProgressions();
+    }
+
+    public List<QuestProgression> getQuestProgressions() {
+	List<QuestProgression> g = new ArrayList<QuestProgression>();
+	for (JobProgression one : this.getJobProgression()) {
+	    g.addAll(this.getQuestProgressions(one.getJob()));
+	}
+	return g;
+    }
+
+    public List<QuestProgression> getQuestProgressions(Job job) {
+	return getQuestProgressions(job, null);
+    }
+
+    public List<QuestProgression> getQuestProgressions(Job job, ActionType type) {
+	if (!this.isInJob(job))
+	    return null;
+	List<QuestProgression> g = new ArrayList<QuestProgression>();
+
+	if (this.qProgression.get(job.getName()) != null)
+	    g = new ArrayList<QuestProgression>(this.qProgression.get(job.getName()));
+
+	List<QuestProgression> tmp = new ArrayList<QuestProgression>();
+
+	if (!g.isEmpty()) {
+	    if (g.get(0).isEnded()) {
+		g.clear();
+		this.qProgression.clear();
+	    }
+	}
+
+	for (QuestProgression one : new ArrayList<QuestProgression>(g)) {
+	    QuestProgression qp = one;
+	    if (qp == null || !qp.isValid()) {
+		Quest q = job.getNextQuest(getQuestNameList(job, type), this.getJobProgression(job).getLevel());
+
+		if (q == null)
+		    continue;
+
+		qp = new QuestProgression(q);
+
+		if (g.size() >= job.getMaxDailyQuests())
+		    continue;
+
+		g.add(qp);
+	    }
+
+	    if (type == null || type.name().equals(qp.getQuest().getAction().name()))
+		tmp.add(qp);
+	}
+
+	this.qProgression.put(job.getName(), g);
+
+	if (g.size() < job.getMaxDailyQuests()) {
+	    for (int i = g.size(); i < job.getMaxDailyQuests(); i++) {
+		Quest q = job.getNextQuest(getQuestNameList(job, type), this.getJobProgression(job).getLevel());
+
+		if (q == null)
+		    continue;
+		QuestProgression qp = new QuestProgression(q);
+		g.add(qp);
+
+		if (type == null || type.name().equals(qp.getQuest().getAction().name()))
+		    tmp.add(qp);
+	    }
+	}
+	this.qProgression.put(job.getName(), g);
+	return tmp;
+    }
+
+    public int getDoneQuests() {
+	return doneQuests;
+    }
+
+    public void setDoneQuests(int doneQuests) {
+	this.doneQuests = doneQuests;
+    }
+
+    public void addDoneQuest() {
+	this.doneQuests++;
+    }
+
+    public int getFurnaceCount() {
+	return FurnaceBrewingHandling.getTotalFurnaces(this.getPlayerUUID());
+    }
+
+    public int getBrewingStandCount() {
+	return FurnaceBrewingHandling.getTotalBrewingStands(this.getPlayerUUID());
+    }
+
+    public int getMaxBrewingStandsAllowed() {
+	Double maxV = Jobs.getPermissionManager().getMaxPermission(this, "jobs.maxbrewingstands");
+
+	if (maxV == null || maxV == 0)
+	    maxV = (double) Jobs.getGCManager().getBrewingStandsMaxDefault();
+
+	int max = maxV.intValue();
+	return max;
+    }
+
+    public int getMaxFurnacesAllowed() {
+	Double maxV = Jobs.getPermissionManager().getMaxPermission(this, "jobs.maxfurnaces");
+
+	if (maxV == null || maxV == 0)
+	    maxV = (double) Jobs.getGCManager().getFurnacesMaxDefault();
+
+	int max = maxV.intValue();
+
+	return max;
     }
 }
