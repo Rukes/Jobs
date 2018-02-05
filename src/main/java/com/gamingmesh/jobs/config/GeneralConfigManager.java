@@ -103,6 +103,13 @@ public class GeneralConfigManager {
 	EmptyServerAcountActionBar, ActionBarsMessageByDefault, ShowTotalWorkers, ShowPenaltyBonus, useDynamicPayment,
 	useGlobalBoostScheduler, JobsGUIOpenOnBrowse, JobsGUIShowChatBrowse, JobsGUISwitcheButtons, JobsGUIOpenOnJoin;
 
+    private int JobsGUIRows, JobsGUIBackButton,
+	JobsGUIStartPosition,
+	JobsGUIGroupAmount,
+	JobsGUISkipAmount;
+
+    private String DecimalPlacesMoney, DecimalPlacesExp, DecimalPlacesPoints;
+
     public ItemStack guiBackButton;
     public ItemStack guiFiller;
 
@@ -450,6 +457,12 @@ public class GeneralConfigManager {
 	c.getW().addComment("Optimizations.NewVersion",
 	    "When set to true staff will be informed about new Jobs plugin version", "You need to have jobs.versioncheck permission node");
 	ShowNewVersion = c.get("Optimizations.NewVersion", true);
+
+	c.getW().addComment("Optimizations.DecimalPlaces.Money",
+	    "Decimal places to be shown");
+	DecimalPlacesMoney = "%." + c.get("Optimizations.DecimalPlaces.Money", 2) + "f";
+	DecimalPlacesExp = "%." + c.get("Optimizations.DecimalPlaces.Exp", 2) + "f";
+	DecimalPlacesPoints = "%." + c.get("Optimizations.DecimalPlaces.Points", 2) + "f";
 
 	c.getW().addComment("Optimizations.DBCleaning.Jobs.Use",
 	    "Warning!!! before enabling this feature, please make data base backup, just in case there will be some issues with data base cleaning",
@@ -884,7 +897,16 @@ public class GeneralConfigManager {
 	c.getW().addComment("JobsGUI.SwitcheButtons", "With true left mouse button will join job and right will show more info",
 	    "With false left mouse button will show more info, rigth will join job", "Dont forget to adjust locale file");
 	JobsGUISwitcheButtons = c.get("JobsGUI.SwitcheButtons", false);
-	c.getW().addComment("JobsBrowse.ShowPenaltyBonus", "Do you want to show GUI when performing /jobs join command");
+	c.getW().addComment("JobsGUI.Rows", "Defines size in rows of GUI");
+	JobsGUIRows = c.get("JobsGUI.Rows", 5);
+	c.getW().addComment("JobsGUI.BackButtonSlot", "Defines back button slot in GUI");
+	JobsGUIBackButton = c.get("JobsGUI.BackButtonSlot", 37);
+	c.getW().addComment("JobsGUI.StartPosition", "Defines start position in gui from which job icons will be shown");
+	JobsGUIStartPosition = c.get("JobsGUI.StartPosition", 11);
+	c.getW().addComment("JobsGUI.GroupAmount", "Defines By how many jobs we need to group up");
+	JobsGUIGroupAmount = c.get("JobsGUI.GroupAmount", 7);
+	c.getW().addComment("JobsGUI.SkipAmount", "Defines By how many slot we need to skip after group");
+	JobsGUISkipAmount = c.get("JobsGUI.SkipAmount", 2);
 
 	Material tmat = Material.getMaterial(c.get("JobsGUI.BackButton.Material", "JACK_O_LANTERN"));
 	guiBackButton = new ItemStack(tmat == null ? Material.JACK_O_LANTERN : tmat, 1, (byte) c.get("JobsGUI.BackButton.Data", 0));
@@ -944,4 +966,45 @@ public class GeneralConfigManager {
     public int getBrowseAmountToShow() {
 	return BrowseAmountToShow;
     }
+
+    public String getDecimalPlacesMoney() {
+	return DecimalPlacesMoney;
+    }
+
+    public String getDecimalPlacesExp() {
+	return DecimalPlacesExp;
+    }
+
+    public String getDecimalPlacesPoints() {
+	return DecimalPlacesPoints;
+    }
+
+    public int getJobsGUIRows() {
+	if (JobsGUIRows < 1)
+	    JobsGUIRows = 1;
+	return JobsGUIRows;
+    }
+
+    public int getJobsGUIBackButton() {
+	if (JobsGUIBackButton < 1)
+	    JobsGUIBackButton = 1;
+	if (JobsGUIBackButton > JobsGUIRows * 9)
+	    JobsGUIBackButton = JobsGUIRows * 9;
+	return JobsGUIBackButton - 1;
+    }
+
+    public int getJobsGUIStartPosition() {
+	if (JobsGUIBackButton < 1)
+	    JobsGUIBackButton = 1;
+	return JobsGUIStartPosition - 1;
+    }
+
+    public int getJobsGUIGroupAmount() {
+	return JobsGUIGroupAmount;
+    }
+
+    public int getJobsGUISkipAmount() {
+	return JobsGUISkipAmount;
+    }
+
 }
