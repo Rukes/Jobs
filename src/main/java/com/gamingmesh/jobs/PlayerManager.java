@@ -45,8 +45,10 @@ import com.gamingmesh.jobs.container.ArchivedJobs;
 import com.gamingmesh.jobs.container.Boost;
 import com.gamingmesh.jobs.container.BoostMultiplier;
 import com.gamingmesh.jobs.container.CurrencyType;
+import com.gamingmesh.jobs.container.ItemBonusCache;
 import com.gamingmesh.jobs.container.Job;
 import com.gamingmesh.jobs.container.JobCommands;
+import com.gamingmesh.jobs.container.JobItemBonus;
 import com.gamingmesh.jobs.container.JobItems;
 import com.gamingmesh.jobs.container.JobProgression;
 import com.gamingmesh.jobs.container.JobsPlayer;
@@ -104,7 +106,8 @@ public class PlayerManager {
     public void addPlayerToMap(PlayerInfo info) {
 	this.PlayerUUIDMap.put(info.getUuid(), info);
 	this.PlayerIDMap.put(info.getID(), info);
-	this.PlayerNameMap.put(info.getName().toLowerCase(), info);
+	if (info.getName() != null)
+	    this.PlayerNameMap.put(info.getName().toLowerCase(), info);
     }
 
     public void addPlayerToCache(JobsPlayer jPlayer) {
@@ -615,7 +618,7 @@ public class PlayerManager {
 	    message = message.replace("%titlename%", levelUpEvent.getNewTitleColor() + levelUpEvent.getNewTitleName() + ChatColor.WHITE);
 	    message = message.replace("%jobname%", job.getChatColor() + job.getName() + ChatColor.WHITE);
 	    for (String line : message.split("\n")) {
-		if (Jobs.getGCManager().isBroadcastingLevelups()) {
+		if (Jobs.getGCManager().isBroadcastingSkillups()) {
 		    Bukkit.getServer().broadcastMessage(line);
 		} else if (player != null) {
 		    if (Jobs.getGCManager().TitleChangeActionBar)
@@ -727,30 +730,55 @@ public class PlayerManager {
 	}
     }
 
-    public BoostMultiplier getItemBoost(Player player, Job prog) {
+    HashMap<UUID, HashMap<Job, ItemBonusCache>> cache = new HashMap<UUID, HashMap<Job, ItemBonusCache>>();
+
+    public void resetiItemBonusCache(UUID uuid) {
+	cache.remove(uuid);
+    }
+
+    public BoostMultiplier getItemBoostNBT(Player player, Job prog) {
+
+	HashMap<Job, ItemBonusCache> cj = cache.get(player.getUniqueId());
+
+	if (cj == null) {
+	    cj = new HashMap<Job, ItemBonusCache>();
+	    cache.put(player.getUniqueId(), cj);
+	}
+
+	ItemBonusCache c = cj.get(prog);
+	if (c == null) {
+	    c = new ItemBonusCache(player, prog);
+	    c.recheck();
+	    cj.put(prog, c);
+	    return c.getBoostMultiplier();
+	}
+	return c.getBoostMultiplier();
+    }
+
+    public BoostMultiplier getInventoryBoost(Player player, Job prog) {
 	BoostMultiplier data = new BoostMultiplier();
 	if (player == null)
 	    return data;
 	if (prog == null)
 	    return data;
 	ItemStack iih = Jobs.getNms().getItemInMainHand(player);
-	data = Jobs.getPlayerManager().getItemBoost(prog, iih);
+	data = Jobs.getPlayerManager().getItemBoostByNBT(prog, iih);
 	for (ItemStack OneArmor : player.getInventory().getArmorContents()) {
 	    if (OneArmor == null || OneArmor.getType() == Material.AIR)
 		continue;
-	    BoostMultiplier armorboost = Jobs.getPlayerManager().getItemBoost(prog, OneArmor);
+	    BoostMultiplier armorboost = Jobs.getPlayerManager().getItemBoostByNBT(prog, OneArmor);
 	    data.add(armorboost);
 	}
+
 	return data;
     }
 
     @SuppressWarnings("deprecation")
-    public BoostMultiplier getItemBoost(Job prog, ItemStack item) {
-	BoostMultiplier bonus = new BoostMultiplier();
-	if (prog.getItems().isEmpty())
-	    return bonus;
+    public JobItems getOldItemBoost(Job prog, ItemStack item) {
+	if (prog.getItemBonus().isEmpty())
+	    return null;
 	if (item == null)
-	    return bonus;
+	    return null;
 
 	ItemMeta meta = item.getItemMeta();
 	String name = null;
@@ -765,7 +793,8 @@ public class PlayerManager {
 
 	Map<Enchantment, Integer> enchants = item.getEnchantments();
 
-	main: for (JobItems oneItem : prog.getItems()) {
+	main: for (Entry<String, JobItems> one : prog.getItemBonus().entrySet()) {
+	    JobItems oneItem = one.getValue();
 	    if (oneItem.getId() != item.getTypeId())
 		continue;
 
@@ -787,10 +816,84 @@ public class PlayerManager {
 		    continue main;
 	    }
 
-	    return oneItem.getBoost();
+	    return oneItem;
+	}
+	return null;
+    }
+
+    public boolean containsItemBoostByNBT(ItemStack item) {
+	if (item == null)
+	    return false;
+	for (Job one : Jobs.getJobs()) {
+	    if (one.getItemBonus().isEmpty())
+		continue;
+	    if (!Jobs.getReflections().hasNbt(item, "JobsItemBoost"))
+		continue;
+	    return true;
+	}
+	return false;
+    }
+
+    public void updateOldItems(Player player) {
+
+	ItemStack iih = Jobs.getNms().getItemInMainHand(player);
+	if (iih != null && !iih.getType().equals(Material.AIR) && Jobs.getPlayerManager().containsItemBoostByNBT(iih) && !Jobs.getReflections().hasNbt(iih, "JobsItemBoost")) {
+	    boolean changed = false;
+	    for (Job one : Jobs.getJobs()) {
+		JobItems jitem = Jobs.getPlayerManager().getOldItemBoost(one, iih);
+		if (jitem == null)
+		    continue;
+
+		iih = Jobs.getReflections().setNbt(iih, "JobsItemBoost", one.getName(), jitem.getNode());
+		changed = true;
+	    }
+	    if (changed)
+		Jobs.getNms().setItemInMainHand(player, iih);
 	}
 
-	return bonus;
+	ItemStack[] cont = player.getInventory().getArmorContents();
+
+	boolean gchanged = false;
+	for (int i = 0; i < cont.length; i++) {
+	    ItemStack item = cont[i];
+	    if (item == null || item.getType().equals(Material.AIR) || Jobs.getReflections().hasNbt(iih, "JobsItemBoost"))
+		continue;
+	    boolean changed = false;
+	    for (Job one : Jobs.getJobs()) {
+		JobItems jitem = Jobs.getPlayerManager().getOldItemBoost(one, item);
+		if (jitem == null)
+		    continue;
+		item = Jobs.getReflections().setNbt(item, "JobsItemBoost", one.getName(), jitem.getNode());
+		changed = true;
+	    }
+	    if (changed) {
+		cont[i] = item;
+		gchanged = true;
+	    }
+	}
+	if (gchanged)
+	    player.getInventory().setArmorContents(cont);
+    }
+
+    public BoostMultiplier getItemBoostByNBT(Job prog, ItemStack item) {
+	BoostMultiplier bonus = new BoostMultiplier();
+	if (prog.getItemBonus().isEmpty())
+	    return bonus;
+	if (item == null)
+	    return bonus;
+
+	if (!Jobs.getReflections().hasNbt(item, "JobsItemBoost"))
+	    return bonus;
+
+	Object itemName = Jobs.getReflections().getNbt(item, "JobsItemBoost", prog.getName());
+
+	if (itemName == null)
+	    return bonus;
+	JobItems b = prog.getItemBonus((String) itemName);
+	if (b == null)
+	    return bonus;
+
+	return b.getBoost();
     }
 
     public enum BoostOf {
@@ -856,7 +959,8 @@ public class PlayerManager {
 	boost.add(BoostOf.Global, prog.getBoost());
 	if (Jobs.getGCManager().useDynamicPayment)
 	    boost.add(BoostOf.Dynamic, new BoostMultiplier().add(prog.getBonus()));
-	boost.add(BoostOf.Item, Jobs.getPlayerManager().getItemBoost(player.getPlayer(), prog));
+//	boost.add(BoostOf.Item, Jobs.getPlayerManager().getItemBoost(player.getPlayer(), prog));
+	boost.add(BoostOf.Item, Jobs.getPlayerManager().getItemBoostNBT(player.getPlayer(), prog));
 	boost.add(BoostOf.Area, new BoostMultiplier().add(Jobs.getRestrictedAreaManager().getRestrictedMultiplier(player.getPlayer())));
 
 	return boost;

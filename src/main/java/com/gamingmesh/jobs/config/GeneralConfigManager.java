@@ -69,6 +69,7 @@ public class GeneralConfigManager {
     public boolean PaymentMethodsMoney;
     public boolean PaymentMethodsPoints;
     public boolean PaymentMethodsExp;
+    private HashMap<CurrencyType, Double> generalMulti = new HashMap<CurrencyType, Double>();
     public int getSelectionTooldID;
 
     private int ResetTimeHour;
@@ -101,7 +102,7 @@ public class GeneralConfigManager {
     public boolean fixAtMaxLevel, ToggleActionBar, TitleChangeChat, TitleChangeActionBar, LevelChangeChat,
 	LevelChangeActionBar, SoundLevelupUse, SoundTitleChangeUse, UseServerAccount, EmptyServerAcountChat,
 	EmptyServerAcountActionBar, ActionBarsMessageByDefault, ShowTotalWorkers, ShowPenaltyBonus, useDynamicPayment,
-	useGlobalBoostScheduler, JobsGUIOpenOnBrowse, JobsGUIShowChatBrowse, JobsGUISwitcheButtons, JobsGUIOpenOnJoin;
+	JobsGUIOpenOnBrowse, JobsGUIShowChatBrowse, JobsGUISwitcheButtons, JobsGUIOpenOnJoin;
 
     private int JobsGUIRows, JobsGUIBackButton,
 	JobsGUIStartPosition,
@@ -572,6 +573,18 @@ public class GeneralConfigManager {
 	PaymentMethodsPoints = c.get("Economy.PaymentMethods.Points", true);
 	PaymentMethodsExp = c.get("Economy.PaymentMethods.Exp", true);
 
+	c.getW().addComment("Economy.GeneralMulti",
+	    "Can be used to change payment amounts for all jobs and all actions if you want to readjust them",
+	    "Amounts are in percentage, above 0 will increase payments",
+	    "Amount belove 0 will decrease payments",
+	    "If action pays negative amount, then value above 0 will increase that negative value",
+	    "So is placing diamond ore takes from you 10 bucks, then by setting 50 for money income, you will be charged 15 bucks for placing it",
+	    "If you are getting paid 10 for placing wood, then same value of 50 for money income, will result you getting 15 bucks",
+	    "This only effects base income value");
+	for (CurrencyType one : CurrencyType.values()) {
+	    generalMulti.put(one, c.get("Economy.GeneralMulti." + one.name(), 0D) / 100D);
+	}
+
 	c.getW().addComment("Economy.MinimumOveralPayment.use",
 	    "Determines minimum payment. In example if player uses McMMO treefeller and earns only 20%, but at same time he gets 25% penalty from dynamic payment. He can 'get' negative amount of money",
 	    "This will limit it to particular percentage", "Works only when original payment is above 0");
@@ -913,8 +926,8 @@ public class GeneralConfigManager {
 	tmat = Material.getMaterial(c.get("JobsGUI.Filler.Material", "STAINED_GLASS_PANE"));
 	guiFiller = new ItemStack(tmat == null ? Material.STAINED_GLASS_PANE : tmat, 1, (byte) c.get("JobsGUI.Filler.Data", 15));
 
-	c.getW().addComment("Schedule.Boost.Enable", "Do you want to enable scheduler for global boost");
-	useGlobalBoostScheduler = c.get("Schedule.Boost.Enable", false);
+//	c.getW().addComment("Schedule.Boost.Enable", "Do you want to enable scheduler for global boost");
+//	useGlobalBoostScheduler = c.get("Schedule.Boost.Enable", false);
 
 	try {
 	    c.getW().save(f);
@@ -1005,6 +1018,10 @@ public class GeneralConfigManager {
 
     public int getJobsGUISkipAmount() {
 	return JobsGUISkipAmount;
+    }
+
+    public Double getGeneralMulti(CurrencyType type) {
+	return generalMulti.get(type);
     }
 
 }

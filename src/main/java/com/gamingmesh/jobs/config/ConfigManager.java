@@ -27,15 +27,18 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 
 import org.apache.commons.lang.StringEscapeUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import com.gamingmesh.jobs.Jobs;
 import com.gamingmesh.jobs.container.ActionType;
@@ -533,6 +536,19 @@ public class ConfigManager {
 		ConfigurationSection guiSection = jobSection.getConfigurationSection("Gui");
 		if (guiSection.contains("Id") && guiSection.contains("Data") && guiSection.isInt("Id") && guiSection.isInt("Data")) {
 		    GUIitem = new ItemStack(Material.getMaterial(guiSection.getInt("Id")), 1, (byte) guiSection.getInt("Data"));
+		} else if (guiSection.contains("CustomSkull")) {
+		    String skullOwner = guiSection.getString("CustomSkull");
+		    GUIitem = new ItemStack(Material.SKULL_ITEM, 1, (byte) 3);
+		    SkullMeta skullMeta = (SkullMeta) GUIitem.getItemMeta();
+		    if (skullOwner.length() == 36) {
+			try {
+			    OfflinePlayer offPlayer = Bukkit.getOfflinePlayer(UUID.fromString(skullOwner));
+			    skullMeta.setOwner(offPlayer.getName());
+			} catch (Exception e) {
+			}
+		    } else
+			skullMeta.setOwner(skullOwner);
+		    GUIitem.setItemMeta(skullMeta);
 		} else
 		    Jobs.getPluginLogger().warning("Job " + jobKey + " has an invalid Gui property. Please fix this if you want to use it!");
 	    }
@@ -610,7 +626,7 @@ public class ConfigManager {
 	    }
 
 	    // Items
-	    ArrayList<JobItems> jobItems = new ArrayList<JobItems>();
+	    HashMap<String, JobItems> jobItems = new HashMap<String, JobItems>();
 	    ConfigurationSection itemsSection = jobSection.getConfigurationSection("items");
 	    if (itemsSection != null) {
 		for (String itemKey : itemsSection.getKeys(false)) {
@@ -660,7 +676,7 @@ public class ConfigManager {
 		    if (itemSection.isDouble("expBoost"))
 			b.add(CurrencyType.EXP, itemSection.getDouble("expBoost") - 1);
 
-		    jobItems.add(new JobItems(node, id, 0, 1, name, lore, enchants, b));
+		    jobItems.put(node.toLowerCase(), new JobItems(node, id, 0, 1, name, lore, enchants, b));
 		}
 	    }
 
@@ -967,8 +983,11 @@ public class ConfigManager {
 			    Jobs.getGCManager().setTntFinder(true);
 
 			double income = section.getDouble("income", 0.0);
+			income = updateValue(CurrencyType.MONEY, income);
 			double points = section.getDouble("points", 0.0);
+			points = updateValue(CurrencyType.POINTS, points);
 			double experience = section.getDouble("experience", 0.0);
+			experience = updateValue(CurrencyType.EXP, experience);
 
 			int fromlevel = 1;
 
@@ -1009,5 +1028,11 @@ public class ConfigManager {
 	//} catch (IOException e) {
 	//	e.printStackTrace();
 	//}
+    }
+
+    private double updateValue(CurrencyType type, double amount) {
+	Double mult = Jobs.getGCManager().getGeneralMulti(type);
+	amount = amount + (amount * mult);
+	return amount;
     }
 }

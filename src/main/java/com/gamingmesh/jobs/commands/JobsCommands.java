@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -35,7 +36,6 @@ import com.gamingmesh.jobs.container.Job;
 import com.gamingmesh.jobs.container.JobInfo;
 import com.gamingmesh.jobs.container.JobProgression;
 import com.gamingmesh.jobs.container.JobsPlayer;
-import com.gamingmesh.jobs.stuff.Debug;
 import com.gamingmesh.jobs.stuff.PageInfo;
 import com.gamingmesh.jobs.stuff.RawMessage;
 
@@ -132,7 +132,7 @@ public class JobsCommands implements CommandExecutor {
     }
 
     private static String getUsage(String cmd) {
-	String cmdString = Jobs.getLanguage().getMessage("command.help.output.cmdFormat", "[command]", label + " " + cmd);
+	String cmdString = Jobs.getLanguage().getMessage("command.help.output.cmdFormat", "[command]", Jobs.getLanguage().getMessage("command.help.output.label") + " " + cmd);
 	String key = "command." + cmd + ".help.args";
 	if (Jobs.getLanguage().containsKey(key) && !Jobs.getLanguage().getMessage(key).isEmpty()) {
 	    cmdString = cmdString.replace("[arguments]", " " + Jobs.getLanguage().getMessage(key));

@@ -136,6 +136,8 @@ public class Jobs extends JavaPlugin {
 
     private static ConfigManager configManager;
     private static GeneralConfigManager GconfigManager;
+    
+    private static Reflections reflections;
 
     private static Logger pLogger;
     private static File dataFolder;
@@ -240,6 +242,12 @@ public class Jobs extends JavaPlugin {
 	return BpManager;
     }
 
+    public static Reflections getReflections() {
+	if (reflections == null)
+	    reflections = new Reflections(instance);
+	return reflections;
+    }
+    
     public static JobsManager getDBManager() {
 	if (DBManager == null)
 	    DBManager = new JobsManager(instance);
@@ -618,8 +626,7 @@ public class Jobs extends JavaPlugin {
 
 	// Schedule
 	Jobs.getScheduleManager().load();
-	if (GconfigManager.useGlobalBoostScheduler)
-	    Jobs.getScheduleManager().start();
+	Jobs.getScheduleManager().start();
 
 	permissionManager = new PermissionManager();
     }
@@ -782,7 +789,6 @@ public class Jobs extends JavaPlugin {
 	    YmlMaker jobShopItems = new YmlMaker(this, "shopItems.yml");
 	    jobShopItems.saveDefaultConfig();
 
-	    
 	    setPermissionHandler(new PermissionHandler(this));
 	    setJobsClassloader();
 	    setPlayerManager();
@@ -834,7 +840,7 @@ public class Jobs extends JavaPlugin {
 	    getExplore().load();
 
 	    FurnaceBrewingHandling.load();
-	    
+
 	    String message = ChatColor.translateAlternateColorCodes('&', "&e[Jobs] Plugin has been enabled succesfully.");
 	    ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
 	    console.sendMessage(message);
@@ -842,7 +848,6 @@ public class Jobs extends JavaPlugin {
 
 	    cManager.fillCommands();
 
-	    
 	} catch (Exception e) {
 	    System.out.println("There was some issues when starting plugin. Please contact dev about this. Plugin will be disabled.");
 	    e.printStackTrace();
@@ -856,9 +861,9 @@ public class Jobs extends JavaPlugin {
 	shopManager.CloseInventories();
 	dao.saveExplore();
 	dao.saveBlockProtection();
-	
+
 	FurnaceBrewingHandling.save();
-	
+
 	Jobs.shutdown();
 	String message = ChatColor.translateAlternateColorCodes('&', "&e[Jobs] &2Plugin has been disabled succesfully.");
 	ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
